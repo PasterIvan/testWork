@@ -1,5 +1,6 @@
 import React, {useCallback, useEffect, useState} from 'react';
 import {
+  ActivityIndicator,
   FlatList,
   ListRenderItem,
   Pressable,
@@ -22,9 +23,10 @@ export const UsersScreen = ({navigation}: UsersScreenProps) => {
 
   const [users, setUsers] = useState<UserType[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [isError, setIsError] = useState<boolean>(false);
   const [page, setPage] = useState<number>(1);
-  const [message, setmMssage] = useState<string>('');
+  const [message, setMessage] = useState<string>('');
 
   const renderUsers: ListRenderItem<UserType> = ({item}) => {
     return (
@@ -38,18 +40,17 @@ export const UsersScreen = ({navigation}: UsersScreenProps) => {
   };
 
   const getUsers = useCallback(async () => {
-    setIsLoading(true);
+    setIsRefreshing(true);
     setPage(1);
     try {
       const res = await usersAPI.getUsers({seed: 'abs', page, results});
       setUsers(res.data.results);
       setPage(prevState => prevState + 1);
     } catch (err) {
-      setmMssage(err.response.data);
-      console.log(err.response.data);
+      setMessage(err.response.data);
       setIsError(true);
     } finally {
-      setIsLoading(false);
+      setIsRefreshing(false);
     }
   }, [users]);
 
@@ -60,7 +61,7 @@ export const UsersScreen = ({navigation}: UsersScreenProps) => {
       setUsers(prevState => [...prevState, ...res.data.results]);
       setPage(prevState => prevState + 1);
     } catch (err) {
-      setmMssage(err.response.data);
+      setMessage(err.response.data);
       setIsError(true);
     } finally {
       setIsLoading(false);
@@ -70,8 +71,11 @@ export const UsersScreen = ({navigation}: UsersScreenProps) => {
   const closeError = () => setIsError(false);
 
   useEffect(() => {
-    (async () => await getUsers())();
+    (async () => {
+      await getUsers();
+    })();
   }, []);
+
   return (
     <View>
       <StatusBar barStyle={'dark-content'} />
@@ -87,9 +91,12 @@ export const UsersScreen = ({navigation}: UsersScreenProps) => {
         keyExtractor={(item: UserType) => item?.id?.value}
         onEndReached={loadUsers}
         onEndReachedThreshold={0.5}
+        ListFooterComponent={() => (
+          <View>{isLoading && <ActivityIndicator />}</View>
+        )}
         refreshControl={
           <RefreshControl
-            refreshing={isLoading}
+            refreshing={isRefreshing}
             onRefresh={getUsers}
             colors={['#fff']} // for android
             tintColor={'#000'} // for ios
@@ -147,6 +154,11 @@ const styles = StyleSheet.create({
     marginLeft: 15,
     backgroundColor: 'red',
     borderRadius: 5,
+  },
+
+  modal: {
+    justifyContent: 'flex-end',
+    marginBottom: 60,
   },
 
   cross: {
